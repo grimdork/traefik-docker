@@ -1,0 +1,29 @@
+#!/bin/bash
+# Grant read/write permissions to www-data (Docker's default user) for a given directory.
+
+# Target directory from first argument
+TARGET_DIR=$1
+# Docker's UID/GID (www-data)
+NC_ID=33
+
+# Check if a directory was provided
+if [ -z "$TARGET_DIR" ]; then
+    echo "Usage: grant-docker /path/to/directory"
+    exit 1
+fi
+
+# Check if the directory actually exists
+if [ ! -d "$TARGET_DIR" ]; then
+    echo "Error: Directory '$TARGET_DIR' does not exist."
+    exit 1
+fi
+
+echo "Setting ACLs for www-data (ID $NC_ID) on: $TARGET_DIR"
+
+# 1. Recursive: Grant Read/Execute (and Write) to the existing files/folders
+sudo setfacl -R -m u:$NC_ID:rwx,g:$NC_ID:rwx "$TARGET_DIR"
+
+# 2. Default: Ensure NEW files/folders inherit these permissions automatically
+sudo setfacl -R -d -m u:$NC_ID:rwx,g:$NC_ID:rwx "$TARGET_DIR"
+
+echo "Done. You can verify with: getfacl $TARGET_DIR"

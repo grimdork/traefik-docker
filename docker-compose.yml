@@ -1,0 +1,60 @@
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    environment:
+      - "SCW_ACCESS_KEY=${SCW_ACCESS}"
+      - "SCW_SECRET_KEY=${SCW_SECRET}"
+      - "SCW_DEFAULT_PROJECT_ID=${SCW_PROJECT}"
+    ports:
+      - "80:80"
+      - "443:443"
+    command:
+      - "--api.dashboard=false"
+      # This only makes sense if the dashboard is enabled.
+      #- "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+
+      # Scaleway DNS Resolver
+      - "--certificatesresolvers.scw.acme.dnschallenge=true"
+      - "--certificatesresolvers.scw.acme.dnschallenge.provider=scaleway"
+      - "--certificatesresolvers.scw.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.scw.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.scw.acme.dnschallenge.propagation.delayBeforeChecks=120"
+
+      # HTTP-01 Resolver
+      - "--certificatesresolvers.acmeweb.acme.httpchallenge=true"
+      - "--certificatesresolvers.acmeweb.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.acmeweb.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.acmeweb.acme.storage=/letsencrypt/acme-http.json"
+
+      - "--providers.file.filename=/etc/traefik/dynamic_conf.yml"
+      - "--providers.file.watch=true"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.hide-identity.headers.customResponseHeaders.Server=${GATEWAY_DOMAIN}"
+      - "traefik.http.middlewares.hide-identity.headers.customResponseHeaders.X-Powered-By=Chaos"
+      - "traefik.http.routers.traefik-catchall.middlewares=hide-identity"
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
+      - ./cert.pem:/etc/traefik/certs/cert.pem:ro
+      - ./key.pem:/etc/traefik/certs/key.pem:ro
+      - ./dynamic_conf.yml:/etc/traefik/dynamic_conf.yml:ro
+    networks:
+      - proxy-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+networks:
+  proxy-net:
+    external: true
