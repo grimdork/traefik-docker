@@ -1,0 +1,28 @@
+name: Create release package
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on any tag starting with 'v'
+
+jobs:
+  build:
+    runs-on: ubuntu-slim
+    permissions:
+      contents: write # Required to create the release
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Release Zip
+        run: |
+          # Zip the current directory, excluding git and hidden files
+          zip -r traefik-gateway-${{ github.ref_name }}.zip . -x "*.git*" ".github*" ".env*"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: traefik-gateway-${{ github.ref_name }}.zip
+          generate_release_notes: true # Automatically list commits/PRs
+          draft: false
+          prerelease: false
